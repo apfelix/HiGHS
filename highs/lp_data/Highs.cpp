@@ -3799,6 +3799,9 @@ HighsStatus Highs::completeSolutionFromDiscreteAssignment() {
     options_.mip_max_nodes = options_.mip_max_start_nodes;
     // Solve the model
     basis_.clear();
+    // FELIX addition
+    // write model to mps just before calling optimize
+    HighsStatus dummy_status = writeLocalModel(model_, "highs_start_solution_debugging.mps");
     return_status = this->optimizeModel();
     // ... remembering to recover the original value of mip_max_nodes
     options_.mip_max_nodes = mip_max_nodes;
