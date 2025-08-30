@@ -320,6 +320,10 @@ void HighsPrimalHeuristics::rootReducedCost() {
 }
 
 void HighsPrimalHeuristics::RENS(const std::vector<double>& tmp) {
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: start\n"
+  );
   // return if domain is infeasible
   if (mipsolver.mipdata_->domain.infeasible()) return;
 
@@ -359,6 +363,10 @@ void HighsPrimalHeuristics::RENS(const std::vector<double>& tmp) {
   HeuristicNeighbourhood neighbourhood(mipsolver, localdom);
 retry:
   ++nbacktracks;
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: start of retry, nbacktracks %d\n", int(nbacktracks)
+  );
   neighbourhood.backtracked();
   // printf("current depth : %" HIGHSINT_FORMAT
   //        "   target depth : %" HIGHSINT_FORMAT "\n",
@@ -372,6 +380,10 @@ retry:
 
   // printf("fixingrate before loop is %g\n", fixingrate);
   assert(heur.hasNode());
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: before while loop\n"
+  );
   while (true) {
     // printf("evaluating node\n");
     heur.evaluateNode();
@@ -512,6 +524,10 @@ retry:
     heurlp.flushDomain(localdom);
   }
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: after while loop\n"
+  );
   // printf("stopped heur dive with fixing rate %g\n", fixingrate);
   // if there is no node left it means we backtracked to the global domain and
   // the subproblem was solved with the dive
@@ -522,6 +538,10 @@ retry:
   // determine the fixing rate to decide if the problem is restricted enough to
   // be considered for solving a submip
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: before fixing rate get\n"
+  );
   fixingrate = neighbourhood.getFixingRate();
   // printf("fixing rate is %g\n", fixingrate);
   if (fixingrate < 0.1 ||
@@ -536,6 +556,10 @@ retry:
     return;
   }
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: before removeObsoleteRows\n"
+  );
   heurlp.removeObsoleteRows(false);
   const bool solve_sub_mip_return =
       solveSubMip(heurlp.getLp(), heurlp.getLpSolver().getBasis(), fixingrate,
@@ -544,6 +568,10 @@ retry:
                   // (mipsolver.mipdata_->num_leaves))),
                   200 + mipsolver.mipdata_->num_nodes / 20, 12);
   if (!solve_sub_mip_return) {
+    highsLogUser(
+      mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+      "FELIX: In RENS: before new_lp_iterations check\n"
+    );
     int64_t new_lp_iterations = lp_iterations + heur.getLocalLpIterations();
     if (new_lp_iterations + mipsolver.mipdata_->heuristic_lp_iterations >
         100000 + ((mipsolver.mipdata_->total_lp_iterations -
@@ -554,6 +582,10 @@ retry:
       return;
     }
 
+    highsLogUser(
+      mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+      "FELIX: In RENS: before targetdepth check\n"
+    );
     targetdepth = heur.getCurrentDepth() / 2;
     if (targetdepth <= 1 || mipsolver.mipdata_->checkLimits()) {
       lp_iterations = new_lp_iterations;
@@ -562,6 +594,10 @@ retry:
     maxfixingrate = fixingrate * 0.5;
     // printf("infeasible in root node, trying with lower fixing rate %g\n",
     //        maxfixingrate);
+    highsLogUser(
+      mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+      "FELIX: In RENS: before goto retry\n"
+    );
     goto retry;
   }
 
