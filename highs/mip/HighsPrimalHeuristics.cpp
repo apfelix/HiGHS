@@ -83,6 +83,10 @@ bool HighsPrimalHeuristics::solveSubMip(
     const HighsLp& lp, const HighsBasis& basis, double fixingRate,
     std::vector<double> colLower, std::vector<double> colUpper,
     HighsInt maxleaves, HighsInt maxnodes, HighsInt stallnodes) {
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: start\n"
+  );
   HighsOptions submipoptions = *mipsolver.options_mip_;
   HighsLp submip = lp;
 
@@ -137,6 +141,10 @@ bool HighsPrimalHeuristics::solveSubMip(
   HighsSolution solution;
   solution.value_valid = false;
   solution.dual_valid = false;
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: before solver instance creation\n"
+  );
   // Create HighsMipSolver instance for sub-MIP
   if (!mipsolver.submip)
     mipsolver.analysis_.mipTimerStart(kMipClockSubMipSolve);
@@ -148,7 +156,15 @@ bool HighsPrimalHeuristics::solveSubMip(
   submipsolver.clqtableinit = &mipsolver.mipdata_->cliquetable;
   submipsolver.implicinit = &mipsolver.mipdata_->implications;
   // Solve the sub-MIP
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: before run\n"
+  );
   submipsolver.run();
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: after run\n"
+  );
   mipsolver.max_submip_level =
       std::max(submipsolver.max_submip_level + 1, mipsolver.max_submip_level);
   if (!mipsolver.submip) mipsolver.analysis_.mipTimerStop(kMipClockSubMipSolve);
@@ -173,6 +189,10 @@ bool HighsPrimalHeuristics::solveSubMip(
     infeasObservations += fixingRate;
     ++numInfeasObservations;
   }
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: before kInfeasible check\n"
+  );
   if (submipsolver.node_count_ <= 1 &&
       submipsolver.modelstatus_ == HighsModelStatus::kInfeasible)
     return false;
@@ -188,7 +208,10 @@ bool HighsPrimalHeuristics::solveSubMip(
     successObservations += fixingRate;
     ++numSuccessObservations;
   }
-
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In solveSubMip: end\n"
+  );
   return true;
 }
 
@@ -561,12 +584,20 @@ retry:
     "FELIX: In RENS: before removeObsoleteRows\n"
   );
   heurlp.removeObsoleteRows(false);
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: before solve sub MIP\n"
+  );
   const bool solve_sub_mip_return =
       solveSubMip(heurlp.getLp(), heurlp.getLpSolver().getBasis(), fixingrate,
                   localdom.col_lower_, localdom.col_upper_,
                   500,  // std::max(50, int(0.05 *
                   // (mipsolver.mipdata_->num_leaves))),
                   200 + mipsolver.mipdata_->num_nodes / 20, 12);
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In RENS: after solve sub MIP\n"
+  );
   if (!solve_sub_mip_return) {
     highsLogUser(
       mipsolver.options_mip_->log_options, HighsLogType::kInfo,
