@@ -3801,12 +3801,12 @@ HighsStatus Highs::completeSolutionFromDiscreteAssignment() {
     basis_.clear();
     // FELIX addition
     // write model to mps just before calling optimize
-    if (options_.highs_analysis_level == 255){
-      HighsStatus pass_model_status = passModel(model_.lp_);
-      HighsStatus write_model_status = writeLocalModel(model_, "highs_start_solution_debugging.mps");
-      highsLogUser(options_.log_options, HighsLogType::kInfo,"########### FELIX TEST HERE pass model %d write model %d\n", int(pass_model_status), int(write_model_status));
-      exit(-10);
-    }
+    // if (options_.highs_analysis_level == 255){
+    //   HighsStatus pass_model_status = passModel(model_.lp_);
+    //   HighsStatus write_model_status = writeLocalModel(model_, "highs_start_solution_debugging.mps");
+    //   highsLogUser(options_.log_options, HighsLogType::kInfo,"########### FELIX TEST HERE pass model %d write model %d\n", int(pass_model_status), int(write_model_status));
+    //   exit(-10);
+    // }
     return_status = this->optimizeModel();
     // ... remembering to recover the original value of mip_max_nodes
     options_.mip_max_nodes = mip_max_nodes;

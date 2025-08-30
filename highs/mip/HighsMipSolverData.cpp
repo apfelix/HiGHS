@@ -1836,6 +1836,11 @@ static void clockOff(HighsMipAnalysis& analysis) {
 }
 
 void HighsMipSolverData::evaluateRootNode() {
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: Start analyse root node"
+  );
+
   const bool compute_analytic_centre = true;
   if (!compute_analytic_centre) printf("NOT COMPUTING ANALYTIC CENTRE!\n");
   HighsInt maxSepaRounds = mipsolver.submip ? 5 : kHighsIInf;
@@ -2151,6 +2156,10 @@ restart:
   }
 
   lp.setIterationLimit();
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before evaluateRootLp()"
+  );
   analysis.mipTimerStart(kMipClockEvaluateRootLp);
   status = evaluateRootLp();
   analysis.mipTimerStop(kMipClockEvaluateRootLp);
@@ -2161,15 +2170,27 @@ restart:
   rootlpsolobj = lp.getObjective();
   lp.setIterationLimit(std::max(10000, int(10 * avgrootlpiters)));
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before heuristics.ziRound"
+  );
   if (mipsolver.options_mip_->mip_heuristic_run_zi_round) {
     heuristics.ziRound(firstlpsol);
     heuristics.flushStatistics();
   }
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before heuristics.shifting"
+  );
   if (mipsolver.options_mip_->mip_heuristic_run_shifting) {
     heuristics.shifting(rootlpsol);
     heuristics.flushStatistics();
   }
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before analytic center computation"
+  );
   if (!analyticCenterComputed && compute_analytic_centre) {
     if (checkLimits()) return clockOff(analysis);
 
@@ -2203,7 +2224,10 @@ restart:
       printDisplayLine();
     }
   }
-
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before checking for user solution"
+  );
   printDisplayLine();
   // Possibly look for primal solution from the user
   if (!mipsolver.submip && mipsolver.callback_->user_callback &&
@@ -2212,6 +2236,10 @@ restart:
         mipsolver.solution_objective_,
         kUserMipSolutionCallbackOriginEvaluateRootNode2);
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before cut extraction callback"
+  );
   // Possible cut extraction callback
   if (!mipsolver.submip && mipsolver.callback_->user_callback &&
       mipsolver.callback_->callbackActive(kCallbackMipGetCutPool))
@@ -2219,6 +2247,10 @@ restart:
   if (checkLimits()) return clockOff(analysis);
 
   analysis.mipTimerStop(kMipClockEvaluateRootNode0);
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before evaluate root node 1"
+  );
   analysis.mipTimerStart(kMipClockEvaluateRootNode1);
   do {
     if (rootlpsol.empty()) break;
@@ -2306,6 +2338,10 @@ restart:
   } while (false);
 
   analysis.mipTimerStop(kMipClockEvaluateRootNode1);
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before evaluate root node 2"
+  );
   analysis.mipTimerStart(kMipClockEvaluateRootNode2);
   if (lower_bound > upper_limit) {
     mipsolver.modelstatus_ = HighsModelStatus::kOptimal;
@@ -2317,12 +2353,20 @@ restart:
 
   // if there are new global bound changes we re-evaluate the LP and do one
   // more separation round
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before re-evaluate root LP"
+  );
   bool separate = !domain.getChangedCols().empty();
   analysis.mipTimerStart(kMipClockEvaluateRootLp);
   status = evaluateRootLp();
   analysis.mipTimerStop(kMipClockEvaluateRootLp);
   if (status == HighsLpRelaxation::Status::kInfeasible)
     return clockOff(analysis);
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before root separation round 3"
+  );
   if (separate && lp.scaledOptimal(status)) {
     HighsInt ncuts;
     analysis.mipTimerStart(kMipClockRootSeparationRound3);
@@ -2334,6 +2378,10 @@ restart:
     printDisplayLine();
   }
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before (again) checking for user primal solutions"
+  );
   // Possibly look for primal solution from the user
   if (!mipsolver.submip && mipsolver.callback_->user_callback &&
       mipsolver.callback_->active[kCallbackMipUserSolution])
@@ -2341,12 +2389,20 @@ restart:
         mipsolver.solution_objective_,
         kUserMipSolutionCallbackOriginEvaluateRootNode4);
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before removing fixed indices"
+  );
   removeFixedIndices();
   if (lp.getLpSolver().getBasis().valid) lp.removeObsoleteRows();
   rootlpsolobj = lp.getObjective();
 
   printDisplayLine();
 
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: In root node: before lower_bound <= upper_limit check"
+  );
   if (lower_bound <= upper_limit) {
     if (!mipsolver.submip && mipsolver.options_mip_->mip_allow_restart &&
         mipsolver.options_mip_->presolve != kHighsOffString) {
@@ -2356,6 +2412,10 @@ restart:
         analysis.mipTimerStop(kMipClockFinishAnalyticCentreComputation);
       }
       double fixingRate = percentageInactiveIntegers();
+      highsLogUser(
+        mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+        "FELIX: In root node: before restarting check"
+      );
       if (fixingRate >= 2.5 + 7.5 * mipsolver.submip ||
           (!mipsolver.submip && fixingRate > 0 && numRestarts == 0)) {
         tg.cancel();
@@ -2375,7 +2435,10 @@ restart:
         return clockOff(analysis);
       }
     }
-
+    highsLogUser(
+      mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+      "FELIX: In root node: before symmetry detection"
+    );
     if (detectSymmetries) {
       finishSymmetryDetection(tg, symData);
       analysis.mipTimerStart(kMipClockEvaluateRootLp);
@@ -2384,12 +2447,19 @@ restart:
       if (status == HighsLpRelaxation::Status::kInfeasible)
         return clockOff(analysis);
     }
-
+    highsLogUser(
+      mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+      "FELIX: In root node: before initializing search by adding root node to nodequeue"
+    );
     // add the root node to the nodequeue to initialize the search
     nodequeue.emplaceNode(std::vector<HighsDomainChange>(),
                           std::vector<HighsInt>(), lower_bound,
                           lp.computeBestEstimate(pseudocost), 1);
   }
+  highsLogUser(
+    mipsolver.options_mip_->log_options, HighsLogType::kInfo,
+    "FELIX: end of evaluateRootNode()"
+  );
   // End of HighsMipSolverData::evaluateRootNode()
   clockOff(analysis);
 }
