@@ -341,6 +341,7 @@ HighsModelStatus HighsMipSolverData::trivialHeuristics() {
 
 void HighsMipSolverData::startAnalyticCenterComputation(
     const highs::parallel::TaskGroup& taskGroup) {
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "Start analytic center calculation");
   taskGroup.spawn([&]() {
     // first check if the analytic centre computation should be cancelled, e.g.
     // due to early return in the root node evaluation
@@ -374,6 +375,7 @@ void HighsMipSolverData::startAnalyticCenterComputation(
 
 void HighsMipSolverData::finishAnalyticCenterComputation(
     const highs::parallel::TaskGroup& taskGroup) {
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "Finish analytic center calculation");
   if (mipsolver.analysis_.analyse_mip_time) {
     highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo,
                  "MIP-Timing: %11.2g - starting  analytic centre synch\n",

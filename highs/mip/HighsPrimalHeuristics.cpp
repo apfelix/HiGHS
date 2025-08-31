@@ -79,13 +79,16 @@ void HighsPrimalHeuristics::setupIntCols() {
   });
 }
 
+int submip_depth = 1;
+
 bool HighsPrimalHeuristics::solveSubMip(
     const HighsLp& lp, const HighsBasis& basis, double fixingRate,
     std::vector<double> colLower, std::vector<double> colUpper,
     HighsInt maxleaves, HighsInt maxnodes, HighsInt stallnodes) {
+  submip_depth++;
   highsLogUser(
     mipsolver.options_mip_->log_options, HighsLogType::kInfo,
-    "FELIX: In solveSubMip: start\n"
+    "FELIX: In solveSubMip: start, depth %d\n", submip_depth
   );
   HighsOptions submipoptions = *mipsolver.options_mip_;
   HighsLp submip = lp;
@@ -211,8 +214,9 @@ bool HighsPrimalHeuristics::solveSubMip(
   }
   highsLogUser(
     mipsolver.options_mip_->log_options, HighsLogType::kInfo,
-    "FELIX: In solveSubMip: end\n"
+    "FELIX: In solveSubMip: end depth %d\n", submip_depth
   );
+  submip_depth--;
   return true;
 }
 

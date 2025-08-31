@@ -67,6 +67,7 @@ HighsMipSolver::HighsMipSolver(HighsCallback& callback,
 HighsMipSolver::~HighsMipSolver() = default;
 
 void HighsMipSolver::run() {
+  highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "Start of MIP solver run");
   modelstatus_ = HighsModelStatus::kNotset;
 
   if (submip) {
@@ -137,6 +138,7 @@ restart:
       mipdata_->callbackUserSolution(solution_objective_,
                                      kUserMipSolutionCallbackOriginAfterSetup);
 
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before feasibility jump");
     if (options_mip_->mip_heuristic_run_feasibility_jump) {
       // Apply the feasibility jump before evaluating the root node
       analysis_.mipTimerStart(kMipClockFeasibilityJump);
@@ -160,6 +162,7 @@ restart:
         return;
       }
     }
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before trivial heuristics");
     // Apply the trivial heuristics
     analysis_.mipTimerStart(kMipClockTrivialHeuristics);
     HighsModelStatus returned_model_status = mipdata_->trivialHeuristics();
@@ -176,6 +179,7 @@ restart:
         highsLogUser(options_mip_->log_options, HighsLogType::kInfo,
                      "MIP-Timing: %11.2g - starting evaluate root node\n",
                      timer_.read());
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before evaluateRootNode");
     analysis_.mipTimerStart(kMipClockEvaluateRootNode);
     mipdata_->evaluateRootNode();
     analysis_.mipTimerStop(kMipClockEvaluateRootNode);
@@ -190,6 +194,7 @@ restart:
                    timer_.read());
     // age 5 times to remove stored but never violated cuts after root
     // separation
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: cutpool aging");
     analysis_.mipTimerStart(kMipClockPerformAging0);
     mipdata_->cutpool.performAging();
     mipdata_->cutpool.performAging();
@@ -233,6 +238,7 @@ restart:
   double upperLimLastCheck = mipdata_->upper_limit;
   double lowerBoundLastCheck = mipdata_->lower_bound;
   analysis_.mipTimerStart(kMipClockSearch);
+  highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before search");
   while (search.hasNode()) {
     // Possibly look for primal solution from the user
     if (!submip && callback_->user_callback &&
@@ -258,7 +264,9 @@ restart:
     bool limit_reached = false;
     bool considerHeuristics = true;
     analysis_.mipTimerStart(kMipClockDive);
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before primal heuristics loop");
     while (true) {
+      highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: start of primal heuristics loop");
       // Possibly apply primal heuristics
       if (considerHeuristics && mipdata_->moreHeuristicsAllowed()) {
         analysis_.mipTimerStart(kMipClockDiveEvaluateNode);
@@ -350,6 +358,7 @@ restart:
     analysis_.mipTimerStop(kMipClockDive);
 
     analysis_.mipTimerStart(kMipClockOpenNodesToQueue0);
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before open nodes to queue");
     search.openNodesToQueue(mipdata_->nodequeue);
     analysis_.mipTimerStop(kMipClockOpenNodesToQueue0);
 
@@ -373,6 +382,7 @@ restart:
     // the search datastructure should have no installed node now
     assert(!search.hasNode());
 
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before propagate global domain");
     // propagate the global domain
     analysis_.mipTimerStart(kMipClockDomainPropgate);
     mipdata_->domain.propagate();
@@ -431,6 +441,7 @@ restart:
       analysis_.mipTimerStop(kMipClockUpdateLocalDomain);
     }
 
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before restart checks");
     if (!submip && mipdata_->num_nodes >= nextCheck) {
       auto nTreeRestarts = mipdata_->numRestarts - mipdata_->numRestartsRoot;
       double currNodeEstim =
@@ -503,6 +514,7 @@ restart:
       if (doRestart) {
         highsLogUser(options_mip_->log_options, HighsLogType::kInfo,
                      "\nRestarting search from the root node\n");
+        highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before restart");
         mipdata_->performRestart();
         analysis_.mipTimerStop(kMipClockSearch);
         goto restart;
@@ -512,11 +524,13 @@ restart:
     // remove the iteration limit when installing a new node
     // mipdata_->lp.setIterationLimit();
 
+    highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before loop to install the next node for the search");
     // loop to install the next node for the search
     double this_node_search_time = -analysis_.mipTimerRead(kMipClockNodeSearch);
     analysis_.mipTimerStart(kMipClockNodeSearch);
 
     while (!mipdata_->nodequeue.empty()) {
+      highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: inside loop to install the next node for the search");
       // printf("popping node from nodequeue (length = %" HIGHSINT_FORMAT ")\n",
       // (HighsInt)nodequeue.size());
       assert(!search.hasNode());
@@ -685,8 +699,9 @@ restart:
     if (limit_reached) break;
   }  // while(search.hasNode())
   analysis_.mipTimerStop(kMipClockSearch);
-
+  highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: before clean up solve");
   cleanupSolve();
+  highsLogUser(options_mip_->log_options, HighsLogType::kInfo, "MIP solver run: end");
 }
 
 void HighsMipSolver::cleanupSolve() {
