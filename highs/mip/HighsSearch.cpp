@@ -1178,6 +1178,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
 }
 
 HighsSearch::NodeResult HighsSearch::branch() {
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Start of function\n");
   assert(localdom.getChangedCols().empty());
 
   assert(nodestack.back().opensubtrees == 2);
@@ -1187,9 +1188,11 @@ HighsSearch::NodeResult HighsSearch::branch() {
   HighsInt minrel = pseudocost.getMinReliable();
   double childLb = getCurrentLowerBound();
   NodeResult result = NodeResult::kOpen;
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Before while loop\n");
   while (nodestack.back().opensubtrees == 2 &&
          lp->scaledOptimal(lp->getStatus()) &&
          !lp->getFractionalIntegers().empty()) {
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Inside while loop\n");
     int64_t sbmaxiters = 0;
     if (minrel > 0) {
       int64_t sbiters = getStrongBranchingLpIterations();
@@ -1216,8 +1219,10 @@ HighsSearch::NodeResult HighsSearch::branch() {
     //         pseudocost.getMinReliable());
     double downNodeLb = getCurrentLowerBound();
     double upNodeLb = getCurrentLowerBound();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Inside while loop: before selecting candidate\n");
     HighsInt branchcand =
         selectBranchingCandidate(sbmaxiters, downNodeLb, upNodeLb);
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Inside while loop: after selecting candidate\n");
     // if (!mipsolver.submip)
     //   printf("branching cand returned as %d\n", branchcand);
     NodeData& currnode = nodestack.back();
@@ -1417,9 +1422,12 @@ HighsSearch::NodeResult HighsSearch::branch() {
     }
 
     assert(!localdom.getChangedCols().empty());
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Inside while loop: before eval node\n");
     result = evaluateNode();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Inside while loop: after eval node\n");
     if (result == NodeResult::kSubOptimal) break;
   }
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: After while loop\n");
   inbranching = false;
   NodeData& currnode = nodestack.back();
   pseudocost.setMinReliable(minrel);
@@ -1430,6 +1438,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
   if (currnode.opensubtrees != 2 || result == NodeResult::kSubOptimal)
     return result;
 
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: First if column == -1\n");
   if (currnode.branchingdecision.column == -1) {
     double bestscore = -1.0;
     // solution branching failed, so choose any integer variable to branch
@@ -1508,6 +1517,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
     pseudocost.setDegeneracyFactor(1);
   }
 
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1\n");
   if (currnode.branchingdecision.column == -1) {
     if (lp->getStatus() == HighsLpRelaxation::Status::kOptimal) {
       // if the LP was solved to optimality and all columns are fixed, then this
@@ -1568,6 +1578,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
     return result;
   }
 
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: before opening a new node\n");
   // finally open a new node with the branching decision added
   // and remember that we have one open subtree left
   HighsInt domchgPos = localdom.getDomainChangeStack().size();
@@ -1581,7 +1592,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
       currnode.nodeBasis,
       passStabilizerToChildNode ? currnode.stabilizerOrbits : nullptr);
   nodestack.back().domgchgStackPos = domchgPos;
-
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: End of function\n");
   return NodeResult::kBranched;
 }
 
