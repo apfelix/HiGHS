@@ -959,6 +959,7 @@ void HighsSearch::installNode(HighsNodeQueue::OpenNode&& node) {
 }
 
 HighsSearch::NodeResult HighsSearch::evaluateNode() {
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: Start of Function\n");
   assert(!nodestack.empty());
   NodeData& currnode = nodestack.back();
   const NodeData* parent = getParentNodeData();
@@ -969,6 +970,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
       currnode.lower_bound > mipsolver.mipdata_->optimality_limit)
     return NodeResult::kSubOptimal;
 
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: Before localdom.propagate()\n");
   localdom.propagate();
 
   if (!inheuristic && !localdom.infeasible()) {
@@ -993,9 +995,11 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
         parent->branchingdecision.boundtype == HighsBoundType::kLower);
   }
 
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: Before creating open result\n");
   NodeResult result = NodeResult::kOpen;
 
   if (localdom.infeasible()) {
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: if localdom.infeasible()\n");
     result = NodeResult::kDomainInfeasible;
     localdom.clearChangedCols();
     if (parent != nullptr && parent->lp_objective != -kHighsInf &&
@@ -1005,7 +1009,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
       pseudocost.addCutoffObservation(parent->branchingdecision.column,
                                       upbranch);
     }
-
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: before infeasible conflictAnalysis\n");
     localdom.conflictAnalysis(mipsolver.mipdata_->conflictPool);
   } else {
     lp->flushDomain(localdom);
@@ -1022,13 +1026,16 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
     }
 #endif
     int64_t oldnumiters = lp->getNumLpIterations();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: before resolveLp()\n");
     HighsLpRelaxation::Status status = lp->resolveLp(&localdom);
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: after resolveLp()\n");
     lpiterations += lp->getNumLpIterations() - oldnumiters;
 
     currnode.lower_bound =
         std::max(localdom.getObjectiveLowerBound(), currnode.lower_bound);
 
     if (localdom.infeasible()) {
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: if localdom.infeasible() 2\n");
       result = NodeResult::kDomainInfeasible;
       localdom.clearChangedCols();
       if (parent != nullptr && parent->lp_objective != -kHighsInf &&
@@ -1038,9 +1045,10 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
         pseudocost.addCutoffObservation(parent->branchingdecision.column,
                                         upbranch);
       }
-
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: before infeasible conflictAnalysis 2\n");
       localdom.conflictAnalysis(mipsolver.mipdata_->conflictPool);
     } else if (lp->scaledOptimal(status)) {
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: A\n");
       lp->storeBasis();
       lp->performAging();
 
@@ -1048,6 +1056,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
       currnode.estimate = lp->computeBestEstimate(pseudocost);
       currnode.lp_objective = lp->getObjective();
 
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: B\n");
       if (parent != nullptr && parent->lp_objective != -kHighsInf &&
           parent->branching_point != parent->branchingdecision.boundval) {
         double delta =
@@ -1058,7 +1067,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
         pseudocost.addObservation(parent->branchingdecision.column, delta,
                                   objdelta);
       }
-
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: C\n");
       if (lp->unscaledPrimalFeasible(status)) {
         if (lp->getFractionalIntegers().empty()) {
           double cutoffbnd = getCutoffBound();
@@ -1075,9 +1084,11 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
           }
         }
       }
-
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: D\n");
       if (result == NodeResult::kOpen) {
+        highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: E\n");
         if (lp->unscaledDualFeasible(status)) {
+          highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: F\n");
           currnode.lower_bound =
               std::max(currnode.lp_objective, currnode.lower_bound);
 
@@ -1133,6 +1144,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
             }
           }
         } else if (lp->getObjective() > getCutoffBound()) {
+          highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside scaledOptimal: G\n");
           // the LP is not solved to dual feasibility due to scaling/numerics
           // therefore we compute a conflict constraint as if the LP was bound
           // exceeding and propagate the local domain again. The lp relaxation
@@ -1147,12 +1159,15 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
         }
       }
     } else if (status == HighsLpRelaxation::Status::kInfeasible) {
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside kInfeasible: A\n");
       if (lp->getLpSolver().getModelStatus() ==
           HighsModelStatus::kObjectiveBound)
         result = NodeResult::kBoundExceeding;
       else
         result = NodeResult::kLpInfeasible;
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside kInfeasible: B\n");
       addInfeasibleConflict();
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside kInfeasible: C\n");
       if (parent != nullptr && parent->lp_objective != -kHighsInf &&
           parent->branching_point != parent->branchingdecision.boundval) {
         bool upbranch =
@@ -1160,9 +1175,10 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
         pseudocost.addCutoffObservation(parent->branchingdecision.column,
                                         upbranch);
       }
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: inside kInfeasible: D\n");
     }
   }
-
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: last <if result not open>\n");
   if (result != NodeResult::kOpen) {
     mipsolver.mipdata_->debugSolution.nodePruned(localdom);
     treeweight += std::ldexp(1.0, 1 - getCurrentDepth());
@@ -1173,7 +1189,7 @@ HighsSearch::NodeResult HighsSearch::evaluateNode() {
       addBoundExceedingConflict();
     }
   }
-
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchEvalNode: End of function\n");
   return result;
 }
 
@@ -1438,7 +1454,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
   if (currnode.opensubtrees != 2 || result == NodeResult::kSubOptimal)
     return result;
 
-  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: First if column == -1\n");
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Before First if column == -1\n");
   if (currnode.branchingdecision.column == -1) {
     double bestscore = -1.0;
     // solution branching failed, so choose any integer variable to branch
@@ -1517,7 +1533,7 @@ HighsSearch::NodeResult HighsSearch::branch() {
     pseudocost.setDegeneracyFactor(1);
   }
 
-  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1\n");
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Before Second if column == -1\n");
   if (currnode.branchingdecision.column == -1) {
     if (lp->getStatus() == HighsLpRelaxation::Status::kOptimal) {
       // if the LP was solved to optimality and all columns are fixed, then this
@@ -1528,12 +1544,14 @@ HighsSearch::NodeResult HighsSearch::branch() {
       result = NodeResult::kLpInfeasible;
       return result;
     }
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: set It Limit\n");
     lp->setIterationLimit();
 
     // create a fresh LP only with model rows since all integer columns are
     // fixed, the cutting planes are not required and the LP could not be solved
     // so we want to make it as easy as possible
     HighsLpRelaxation lpCopy(mipsolver);
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: lpCopy.loadModel\n");
     lpCopy.loadModel();
     lpCopy.getLpSolver().changeColsBounds(0, mipsolver.numCol() - 1,
                                           localdom.col_lower_.data(),
@@ -1544,21 +1562,27 @@ HighsSearch::NodeResult HighsSearch::branch() {
 
     // reevaluate the node with LP presolve enabled
     lp->getLpSolver().setOptionValue("presolve", kHighsOnString);
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: before eval node\n");
     result = evaluateNode();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: after eval node\n");
 
     if (result == NodeResult::kOpen) {
       // LP still not solved, reevaluate with primal simplex
       lp->getLpSolver().clearSolver();
       lp->getLpSolver().setOptionValue("simplex_strategy",
                                        kSimplexStrategyPrimal);
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: before eval node with primal simplex\n");
       result = evaluateNode();
+      highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: after eval node with primal simplex\n");
       lp->getLpSolver().setOptionValue("simplex_strategy",
                                        kSimplexStrategyDual);
       if (result == NodeResult::kOpen) {
         // LP still not solved, reevaluate with IPM instead of simplex
         lp->getLpSolver().clearSolver();
         lp->getLpSolver().setOptionValue("solver", "ipm");
+        highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: before eval node with IPM\n");
         result = evaluateNode();
+        highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: SearchBranch: Second if column == -1: after eval node with IPM\n");
 
         if (result == NodeResult::kOpen) {
           highsLogUser(mipsolver.options_mip_->log_options,
