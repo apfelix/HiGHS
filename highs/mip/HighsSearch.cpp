@@ -1949,19 +1949,27 @@ bool HighsSearch::backtrackUntilDepth(HighsInt targetDepth) {
 }
 
 HighsSearch::NodeResult HighsSearch::dive() {
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: Start of function\n");
   reliableatnode.clear();
-
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: Before loop\n");
   do {
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: Start of loop\n");
     ++nnodes;
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: nnodes %d\n", int(nnodes));
     NodeResult result = evaluateNode();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: After eval node\n");
 
     if (mipsolver.mipdata_->checkLimits(nnodes)) return result;
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: After check limits\n");
 
     if (result != NodeResult::kOpen) return result;
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: After check NodeResult\n");
 
     result = branch();
+    highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: After branch\n");
     if (result != NodeResult::kBranched) return result;
   } while (true);
+  highsLogUser(mipsolver.options_mip_->log_options, HighsLogType::kInfo, "FELIX: Dive: End\n");
 }
 
 void HighsSearch::solveDepthFirst(int64_t maxbacktracks) {
