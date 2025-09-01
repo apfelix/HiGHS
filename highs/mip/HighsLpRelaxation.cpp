@@ -1070,7 +1070,7 @@ HighsLpRelaxation::Status HighsLpRelaxation::run(bool resolve_on_error) {
     }
   }
   const bool solver_logging = false;
-  const bool detailed_simplex_logging = false;
+  const bool detailed_simplex_logging = true;
   if (solver_logging) lpsolver.setOptionValue("output_flag", true);
   if (detailed_simplex_logging) {
     lpsolver.setOptionValue("output_flag", true);
