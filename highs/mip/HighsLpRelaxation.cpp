@@ -1069,8 +1069,8 @@ HighsLpRelaxation::Status HighsLpRelaxation::run(bool resolve_on_error) {
              int(lpsolver.getNumCol()), int(lpsolver.getNumRow()));
     }
   }
-  const bool solver_logging = false;
-  const bool detailed_simplex_logging = true;
+  const bool solver_logging = true;
+  const bool detailed_simplex_logging = false; // FELIX: Setting this to "TRUE" make the problem go away ...
   if (solver_logging) lpsolver.setOptionValue("output_flag", true);
   if (detailed_simplex_logging) {
     lpsolver.setOptionValue("output_flag", true);
