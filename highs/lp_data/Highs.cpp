@@ -957,7 +957,9 @@ HighsStatus Highs::run() {
 // with callSolveLp(..)
 HighsStatus Highs::optimizeModel() {
   HighsOptions my_options = HighsOptions();
-  setLocalOptionValue(options_.log_options, "log_to_console",
+  setLocalOptionValue(my_options.log_options, "log_to_console",
+                          my_options.log_options, my_options.records, "True");
+  setLocalOptionValue(my_options.log_options, "output_flag",
                           my_options.log_options, my_options.records, "True");
 
   highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of Function\n");
