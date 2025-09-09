@@ -956,6 +956,7 @@ HighsStatus Highs::run() {
 // Checks the options calls presolve and postsolve if needed. Solvers are called
 // with callSolveLp(..)
 HighsStatus Highs::optimizeModel() {
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of Function\n");
   HighsInt min_highs_debug_level = kHighsDebugLevelMin;
   // kHighsDebugLevelCostly;
   // kHighsDebugLevelMax;
@@ -1068,6 +1069,7 @@ HighsStatus Highs::optimizeModel() {
     assert(!model_.lp_.hasInfiniteCost(options_.infinite_cost));
   }
 
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Before exactResizeModel()\n");
   // Ensure that all vectors in the model have exactly the right size
   exactResizeModel();
 
@@ -1106,6 +1108,7 @@ HighsStatus Highs::optimizeModel() {
     return returnFromOptimizeModel(return_status, undo_mods);
   }
   // Ensure that the LP (and any simplex LP) has the matrix column-wise
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Before model_.lp_.ensureColwise()\n");
   model_.lp_.ensureColwise();
   // Ensure that the matrix has no large values
   if (model_.lp_.a_matrix_.hasLargeValue(options_.large_matrix_value)) {
@@ -1155,9 +1158,11 @@ HighsStatus Highs::optimizeModel() {
   }
   const bool use_simplex_or_ipm =
       (options_.solver.compare(kHighsChooseString) != 0);
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: use_simplex_or_ipm? %b\n", use_simplex_or_ipm);
   if (!use_simplex_or_ipm) {
     // Leaving HiGHS to choose method according to model class
     if (model_.isQp()) {
+      highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: if isQp() \n");
       if (model_.isMip()) {
         if (options_.solve_relaxation) {
           // Relax any semi-variables
@@ -1183,6 +1188,7 @@ HighsStatus Highs::optimizeModel() {
       return returnFromOptimizeModel(return_status, undo_mods);
     } else if (model_.isMip() && !options_.solve_relaxation) {
       // Model is a MIP and not solving just the relaxation
+      highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: if isMip() and no relaxation \n");
       call_status = callSolveMip();
       return_status = interpretCallStatus(options_.log_options, call_status,
                                           return_status, "callSolveMip");
@@ -1192,6 +1198,7 @@ HighsStatus Highs::optimizeModel() {
   // If model is MIP, must be solving the relaxation or not leaving
   // HiGHS to choose method according to model class
   if (model_.isMip()) {
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: model_.isMip() and either relaxation or no choice\n");
     assert(options_.solve_relaxation || use_simplex_or_ipm);
     // Relax any semi-variables
     bool made_semi_variable_mods = false;
@@ -1205,6 +1212,7 @@ HighsStatus Highs::optimizeModel() {
         use_simplex_or_ipm ? (" solver = " + options_.solver).c_str() : "");
   }
   // Solve the model as an LP
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Solve the model as an LP\n");
   HighsLp& incumbent_lp = model_.lp_;
   HighsLogOptions& log_options = options_.log_options;
   bool no_incumbent_lp_solution_or_basis = false;
@@ -1220,6 +1228,7 @@ HighsStatus Highs::optimizeModel() {
   const bool ipx_no_crossover = options_.solver == kIpmString &&
                                 options_.run_crossover == kHighsOffString;
   if (options_.icrash) {
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: if icrash\n");
     ICrashStrategy strategy = ICrashStrategy::kICA;
     bool strategy_ok = parseICrashStrategy(options_.icrash_strategy, strategy);
     if (!strategy_ok) {
@@ -1285,6 +1294,7 @@ HighsStatus Highs::optimizeModel() {
   }
 
   // lambda for Lp solving
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: define solveLP lambda\n");
   auto solveLp = [&](HighsLp& lp, const std::string& lpSolveDescription,
                      double& time) {
     time = -timer_.read(timer_.solve_clock);
@@ -1293,7 +1303,9 @@ HighsStatus Highs::optimizeModel() {
       options_.output_flag = use_output_flag;
     }
     timer_.start(timer_.solve_clock);
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: in lambda before callSolveLp()\n");
     call_status = callSolveLp(lp, lpSolveDescription);
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: in lambda after callSolveLp()\n");
     timer_.stop(timer_.solve_clock);
     if (possibly_use_log_dev_level_2) {
       options_.log_dev_level = log_dev_level;
@@ -1318,8 +1330,10 @@ HighsStatus Highs::optimizeModel() {
   }
   if (basis_.valid) assert(basis_.useful);
 
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Before LP presolve if\n");
   if ((has_basis || options_.presolve == kHighsOffString || unconstrained_lp) &&
       solver_will_use_basis) {
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of LP without presolve\n");
     // There is a valid basis for the problem, presolve is off, or LP
     // has no constraint matrix, and the solver will use the basis
     ekk_instance_.lp_name_ =
@@ -1327,6 +1341,7 @@ HighsStatus Highs::optimizeModel() {
     // If there is a valid HiGHS basis, refine any status values that
     // are simply HighsBasisStatus::kNonbasic
     if (basis_.useful) refineBasis(incumbent_lp, solution_, basis_);
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 1\n");
     solveLp(incumbent_lp,
             "Solving LP without presolve, or with basis, or unconstrained",
             this_solve_original_lp_time);
@@ -1335,6 +1350,7 @@ HighsStatus Highs::optimizeModel() {
     if (return_status == HighsStatus::kError)
       return returnFromOptimizeModel(return_status, undo_mods);
   } else {
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of LP with presolve\n");
     // Otherwise, consider presolve
     //
     // If using IPX to solve the reduced LP, but not crossover, set
@@ -1372,9 +1388,11 @@ HighsStatus Highs::optimizeModel() {
     // presolved problem, since the iteration count is reset to zero
     // if PDLP is used to clean up after postsolve
     HighsInt presolved_lp_pdlp_iteration_count = 0;
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: before switch presolve status\n");
     switch (model_presolve_status_) {
       case HighsPresolveStatus::kNotPresolved: {
         ekk_instance_.lp_name_ = "Original LP";
+        highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 2\n");
         solveLp(incumbent_lp, "Not presolved: solving the LP",
                 this_solve_original_lp_time);
         return_status = interpretCallStatus(options_.log_options, call_status,
@@ -1387,6 +1405,7 @@ HighsStatus Highs::optimizeModel() {
         ekk_instance_.lp_name_ = "Unreduced LP";
         // Log the presolve reductions
         reportPresolveReductions(log_options, incumbent_lp, false);
+        highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 3\n");
         solveLp(incumbent_lp, "Problem not reduced by presolve: solving the LP",
                 this_solve_original_lp_time);
         return_status = interpretCallStatus(options_.log_options, call_status,
@@ -1436,6 +1455,7 @@ HighsStatus Highs::optimizeModel() {
         // objective values aren't correct
         const double save_objective_bound = options_.objective_bound;
         options_.objective_bound = kHighsInf;
+        highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 4\n");
         solveLp(reduced_lp, "Solving the presolved LP",
                 this_solve_presolved_lp_time);
         if (ekk_instance_.status_.initialised_for_solve) {
@@ -1506,6 +1526,7 @@ HighsStatus Highs::optimizeModel() {
         HighsOptions save_options = options_;
         options_.solver = "simplex";
         options_.simplex_strategy = kSimplexStrategyPrimal;
+        highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 5\n");
         solveLp(incumbent_lp,
                 "Solving the original LP with primal simplex "
                 "to determine infeasible or unbounded",
@@ -1544,6 +1565,7 @@ HighsStatus Highs::optimizeModel() {
       }
     }
     // End of presolve
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after switch presolve status\n");
     //
     // Cases of infeasibility/unboundedness timeout and memory errors
     // all handled, so just the successes remain
@@ -1566,7 +1588,9 @@ HighsStatus Highs::optimizeModel() {
     // carried out
     const HighsInfo presolved_lp_info = this->info_;
     const HighsModelStatus presolved_lp_model_status = this->model_status_;
+    highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: before postsolve if\n");
     if (have_optimal_reduced_solution || have_unknown_reduced_solution) {
+      highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: if running postsolve\n");
       // ToDo Put this in a separate method
       assert(model_status_ == HighsModelStatus::kOptimal ||
              model_status_ == HighsModelStatus::kUnknown ||
@@ -1663,6 +1687,7 @@ HighsStatus Highs::optimizeModel() {
           // adding the corresponding values after callSolveLp gives
           // difference
           postsolve_iteration_count = -info_.simplex_iteration_count;
+          highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 6\n");
           solveLp(incumbent_lp,
                   "Solving the original LP from the solution after postsolve",
                   this_solve_original_lp_time);
@@ -1719,6 +1744,7 @@ HighsStatus Highs::optimizeModel() {
             options_.kkt_tolerance, int(pdlp_cleanup_iteration_limit));
         options_.solver = kPdlpString;
         options_.pdlp_iteration_limit = pdlp_cleanup_iteration_limit;
+        highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: solveLp 7\n");
         solveLp(incumbent_lp,
                 "Using PDLP to solve the original LP from the solution after "
                 "postsolve",
@@ -1740,7 +1766,7 @@ HighsStatus Highs::optimizeModel() {
   }
   // Cycling can yield model_status_ == HighsModelStatus::kNotset,
   //  assert(model_status_ != HighsModelStatus::kNotset);
-
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: After LP presolve if\n");
   // Unless the model status was determined using the strictly reduced LP, the
   // HiGHS info is valid
   if (!no_incumbent_lp_solution_or_basis) {
@@ -1813,6 +1839,7 @@ HighsStatus Highs::optimizeModel() {
   // Assess success according to the model status, regardless of
   // whether anything worse has happened earlier
   return_status = highsStatusFromHighsModelStatus(model_status_);
+  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: End of Function\n");
   return returnFromOptimizeModel(return_status, undo_mods);
 }
 
