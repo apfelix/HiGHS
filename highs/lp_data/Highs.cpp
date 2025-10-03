@@ -1351,12 +1351,12 @@ HighsStatus Highs::optimizeModel() {
     solveLp(incumbent_lp,
             "Solving LP without presolve, or with basis, or unconstrained",
             this_solve_original_lp_time);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after solveLp 1 interpretCallStatus\n");
     return_status = interpretCallStatus(options_.log_options, call_status,
                                         return_status, "callSolveLp");
-    if (return_status == HighsStatus::kError) {
-      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after solveLp 1 with HighsStatus::kError: call returnFromOptimizeModel\n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after solveLp 1 maybe call returnFromOptimizeModel? return status %d\n", return_status);
+    if (return_status == HighsStatus::kError)
       return returnFromOptimizeModel(return_status, undo_mods);
-    }
   } else {
     highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of LP with presolve\n");
     // Otherwise, consider presolve
