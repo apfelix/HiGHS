@@ -961,7 +961,7 @@ HighsStatus Highs::optimizeModel() {
   setLocalOptionValue(my_options.log_options, "output_flag",
                           my_options.log_options, my_options.records, "True");
 
-  highsLogUser(options_.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of Function\n");
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of Function\n");
   HighsInt min_highs_debug_level = kHighsDebugLevelMin;
   // kHighsDebugLevelCostly;
   // kHighsDebugLevelMax;
@@ -1317,6 +1317,7 @@ HighsStatus Highs::optimizeModel() {
       options_.output_flag = output_flag;
     }
     time += timer_.read(timer_.solve_clock);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: end of lambda\n");
   };
 
   const bool unconstrained_lp = incumbent_lp.a_matrix_.numNz() == 0;
@@ -1352,8 +1353,10 @@ HighsStatus Highs::optimizeModel() {
             this_solve_original_lp_time);
     return_status = interpretCallStatus(options_.log_options, call_status,
                                         return_status, "callSolveLp");
-    if (return_status == HighsStatus::kError)
+    if (return_status == HighsStatus::kError) {
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after solveLp 1 with HighsStatus::kError: call returnFromOptimizeModel\n");
       return returnFromOptimizeModel(return_status, undo_mods);
+    }
   } else {
     highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Start of LP with presolve\n");
     // Otherwise, consider presolve
@@ -4446,6 +4449,13 @@ HighsStatus Highs::returnFromWriteSolution(FILE* file,
 // Applies checks before returning from optimizeModel()
 HighsStatus Highs::returnFromOptimizeModel(const HighsStatus run_return_status,
                                            const bool undo_mods) {
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options_.log_options, options_, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::returnFromOptimizeModel: Start of Function\n");
+
   assert(!called_return_from_optimize_model);
   HighsStatus return_status = highsStatusFromHighsModelStatus(model_status_);
   if (return_status != run_return_status) {
@@ -4617,10 +4627,18 @@ HighsStatus Highs::returnFromOptimizeModel(const HighsStatus run_return_status,
   const bool solved_as_mip = !options_.solver.compare(kHighsChooseString) &&
                              model_.isMip() && !options_.solve_relaxation;
   if (!solved_as_mip) reportSolvedLpQpStats();
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::returnFromOptimizeModel: end of Function\n");
   return returnFromHighs(return_status);
 }
 
 HighsStatus Highs::returnFromHighs(HighsStatus highs_return_status) {
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options_.log_options, options_, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::returnFromHighs: Start of Function\n");
+
   // Applies checks before returning from HiGHS
   HighsStatus return_status = highs_return_status;
 
@@ -4674,6 +4692,7 @@ HighsStatus Highs::returnFromHighs(HighsStatus highs_return_status) {
       ekk_instance_.clear();
     }
   }
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::returnFromHighs: end of Function\n");
   return return_status;
 }
 

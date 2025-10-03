@@ -154,8 +154,13 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
     highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpSimplex \n");
     return_status = interpretCallStatus(options.log_options, call_status,
                                         return_status, "solveLpSimplex");
-    if (return_status == HighsStatus::kError) return return_status;
+
+    if (return_status == HighsStatus::kError) {
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: solveLpSimplex has HighsStatus::kError \n");
+      return return_status;
+    }
     if (!isSolutionRightSize(solver_object.lp_, solver_object.solution_)) {
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: solveLpSimplex: Inconsistent solution returned from solver \n");
       highsLogUser(options.log_options, HighsLogType::kError,
                    "Inconsistent solution returned from solver\n");
       return HighsStatus::kError;
