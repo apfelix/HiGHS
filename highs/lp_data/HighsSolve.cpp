@@ -19,13 +19,19 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
   HighsStatus return_status = HighsStatus::kOk;
   HighsStatus call_status;
   HighsOptions& options = solver_object.options_;
-  highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Start of Function \n");
+  // create my options
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options.log_options, options, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+  // create my options
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Start of Function \n");
   // Reset unscaled model status and solution params - except for
   // iteration counts
   resetModelStatusAndHighsInfo(solver_object);
   highsLogUser(options.log_options, HighsLogType::kInfo,
                (message + "\n").c_str());
-  highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Before highs debug level check \n");
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Before highs debug level check \n");
   if (options.highs_debug_level > kHighsDebugLevelMin) {
     // Shouldn't have to check validity of the LP since this is done when it is
     // loaded or modified
@@ -38,24 +44,24 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
     if (return_status == HighsStatus::kError) return return_status;
   }
   if (!solver_object.lp_.num_row_ || solver_object.lp_.a_matrix_.numNz() == 0) {
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: LP unconstraint \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: LP unconstraint \n");
     // LP is unconstrained due to having no rows or a zero constraint
     // matrix, so solve directly
     call_status = solveUnconstrainedLp(solver_object);
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveUnconstrainedLp \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveUnconstrainedLp \n");
     return_status = interpretCallStatus(options.log_options, call_status,
                                         return_status, "solveUnconstrainedLp");
     if (return_status == HighsStatus::kError) return return_status;
   } else if (options.solver == kIpmString || options.run_centring ||
              options.solver == kPdlpString) {
     // Use IPM or PDLP
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use IPM or PDLP \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use IPM or PDLP \n");
     if (options.solver == kIpmString || options.run_centring) {
       // Use IPX to solve the LP
-      highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use IPX to solve the LP \n");
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use IPX to solve the LP \n");
       try {
         call_status = solveLpIpx(solver_object);
-        highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpIpx \n");
+        highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpIpx \n");
       } catch (const std::exception& exception) {
         highsLogDev(options.log_options, HighsLogType::kError,
                     "Exception %s in solveLpIpx\n", exception.what());
@@ -65,10 +71,10 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
                                           return_status, "solveLpIpx");
     } else {
       // Use cuPDLP-C to solve the LP
-      highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use cuPDLP-C to solve the LP \n");
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use cuPDLP-C to solve the LP \n");
       try {
         call_status = solveLpCupdlp(solver_object);
-        highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpCupdlp \n");
+        highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpCupdlp \n");
       } catch (const std::exception& exception) {
         highsLogDev(options.log_options, HighsLogType::kError,
                     "Exception %s in solveLpCupdlp\n", exception.what());
@@ -80,21 +86,21 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
     // Check for error return
     if (return_status == HighsStatus::kError) return return_status;
 
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Non-error return \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Non-error return \n");
     // Non-error return requires a primal solution
     assert(solver_object.solution_.value_valid);
 
     if (options.solver == kIpmString || options.run_centring) {
       // Setting the IPM-specific values of (highs_)info_ has been done in
       // solveLpIpx
-      highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: kIpmString or run_centring \n");
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: kIpmString or run_centring \n");
       const bool unwelcome_ipx_status =
           solver_object.model_status_ == HighsModelStatus::kUnknown ||
           (solver_object.model_status_ ==
                HighsModelStatus::kUnboundedOrInfeasible &&
            !options.allow_unbounded_or_infeasible);
       if (unwelcome_ipx_status) {
-        highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: unwelcome_ipx_status \n");
+        highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: unwelcome_ipx_status \n");
         // When performing an analytic centre calculation, the setting
         // of options.run_crossover is ignored, so simplex clean-up is
         // not possible - or desirable, anyway!
@@ -111,7 +117,7 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
             options.run_crossover != kHighsOffString && !options.run_centring;
         if (allow_simplex_cleanup) {
 
-          highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: allow_simplex_cleanup \n");
+          highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: allow_simplex_cleanup \n");
           // IPX has returned a model status that HiGHS would rather
           // avoid, so perform simplex clean-up if crossover was allowed.
           //
@@ -143,9 +149,9 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
     }
   } else {
     // Use Simplex
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use Simplex \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: Use Simplex \n");
     call_status = solveLpSimplex(solver_object);
-    highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpSimplex \n");
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: After solveLpSimplex \n");
     return_status = interpretCallStatus(options.log_options, call_status,
                                         return_status, "solveLpSimplex");
     if (return_status == HighsStatus::kError) return return_status;
@@ -159,7 +165,7 @@ HighsStatus solveLp(HighsLpSolverObject& solver_object, const string message) {
   if (debugHighsLpSolution(message, solver_object) ==
       HighsDebugStatus::kLogicalError)
     return_status = HighsStatus::kError;
-  highsLogUser(options.log_options, HighsLogType::kInfo, "FELIX: solveLp: end of function \n");
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLp: end of function \n");
   return return_status;
 }
 
