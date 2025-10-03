@@ -3862,8 +3862,16 @@ HighsStatus Highs::completeSolutionFromDiscreteAssignment() {
 
 // The method below runs calls solveLp for the given LP
 HighsStatus Highs::callSolveLp(HighsLp& lp, const string message) {
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options_.log_options, options_, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::callSolveLp: Start of Function\n");
+
   HighsStatus return_status = HighsStatus::kOk;
 
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::callSolveLp: before create solver_object\n");
   HighsLpSolverObject solver_object(lp, basis_, solution_, info_, ekk_instance_,
                                     callback_, options_, timer_);
 
@@ -3871,7 +3879,9 @@ HighsStatus Highs::callSolveLp(HighsLp& lp, const string message) {
   assert(model_.lp_.a_matrix_.isColwise());
 
   // Solve the LP
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::callSolveLp: before the actual call to solveLp\n");
   return_status = solveLp(solver_object, message);
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::callSolveLp: after the actual call to solveLp\n");
   // Extract the model status
   model_status_ = solver_object.model_status_;
   return return_status;
