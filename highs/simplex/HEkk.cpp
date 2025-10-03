@@ -998,6 +998,12 @@ HighsStatus HEkk::unpermute() {
 }
 
 HighsStatus HEkk::solve(const bool force_phase2) {
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options_->log_options, *options_, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: start of function \n");
   debugInitialise();
 
   initialiseAnalysis();
@@ -1055,7 +1061,9 @@ HighsStatus HEkk::solve(const bool force_phase2) {
     highsLogUser(options_->log_options, HighsLogType::kInfo,
                  "Using EKK primal simplex solver\n");
     HEkkPrimal primal_solver(*this);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: before primal_solver.solve\n");
     call_status = primal_solver.solve(force_phase2);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: after primal_solver.solve\n");
     assert(called_return_from_solve_);
     return_status = interpretCallStatus(options_->log_options, call_status,
                                         return_status, "HEkkPrimal::solve");
@@ -1079,7 +1087,9 @@ HighsStatus HEkk::solve(const bool force_phase2) {
                    "Using EKK dual simplex solver - serial\n");
     }
     HEkkDual dual_solver(*this);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: before dual_solver.solve\n");
     call_status = dual_solver.solve(force_phase2);
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: after dual_solver.solve\n");
     assert(called_return_from_solve_);
     return_status = interpretCallStatus(options_->log_options, call_status,
                                         return_status, "HEkkDual::solve");
@@ -1114,6 +1124,7 @@ HighsStatus HEkk::solve(const bool force_phase2) {
   if (analysis_.analyse_simplex_summary_data) analysis_.summaryReport();
   if (analysis_.analyse_factor_data) analysis_.reportInvertFormData();
   if (analysis_.analyse_factor_time) analysis_.reportFactorTimer();
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: HEkk::solve: end of function \n");
   return returnFromEkkSolve(return_status);
 }
 

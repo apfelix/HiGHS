@@ -78,6 +78,14 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
   HighsStatus return_status = HighsStatus::kOk;
   HighsStatus call_status;
   HighsOptions& options = solver_object.options_;
+
+  HighsOptions my_options = HighsOptions();
+  passLocalOptions(options.log_options, options, my_options);
+  setLocalOptionValue(my_options.log_options, "output_flag",
+                          my_options.log_options, my_options.records, "True");
+
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Start of Function\n");
+
   HighsLp& incumbent_lp = solver_object.lp_;
   HighsSolution& solution = solver_object.solution_;
   HighsModelStatus& model_status = solver_object.model_status_;
@@ -107,9 +115,11 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
 
   // Reset the model status and HighsInfo values in case of premature
   // return
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Reset the model status\n");
   resetModelStatusAndHighsInfo(solver_object);
 
   // Initialise the simplex stats
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: initialiseSimplexStats\n");
   ekk_instance.initialiseSimplexStats();
 
   // Assumes that the LP has a positive number of rows, since
@@ -132,6 +142,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
   // Consider scaling the LP - either with any existing scaling, or by
   // considering computing scaling factors if there are none - and
   // then move to EKK
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: considerScaling\n");
   considerScaling(options, incumbent_lp);
   //
   const bool was_scaled = incumbent_lp.is_scaled_;
@@ -142,11 +153,13 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
            static_cast<size_t>(incumbent_lp.num_col_));
     assert(basis.row_status.size() ==
            static_cast<size_t>(incumbent_lp.num_row_));
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: formSimplexLpBasisAndFactor\n");
     HighsStatus return_status = formSimplexLpBasisAndFactor(solver_object);
     if (return_status != HighsStatus::kOk)
       return returnFromSolveLpSimplex(solver_object, HighsStatus::kError);
     // formSimplexLpBasisAndFactor may introduce variables with
     // HighsBasisStatus::kNonbasic, so refine it
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: formSimplexLpBasisAndFactor-> refineBasis\n");
     refineBasis(incumbent_lp, solution, basis);
     basis.valid = true;
   }
@@ -155,9 +168,11 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
   // Move the LP to EKK, updating other EKK pointers and any simplex
   // NLA pointers, since they may have moved if the LP has been
   // modified
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Move the LP to EKK\n");
   ekk_instance.moveLp(solver_object);
   if (!status.has_basis) {
     // There is no simplex basis, so use any HiGHS basis
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: There is no simplex basis, so use any HiGHS basis\n");
     if (basis.valid) {
       call_status = ekk_instance.setBasis(basis);
       if (call_status == HighsStatus::kError) {
@@ -201,7 +216,9 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
     // Solve the unscaled LP with unscaled NLA
     //
     solve_unscaled_lp = true;
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Solve the unscaled LP with unscaled NLA\n");
     return_status = ekk_instance.solve();
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: After Solve the unscaled LP with unscaled NLA\n");
     solved_unscaled_lp = true;
     ekk_instance.unpermute();
     ekk_instance.undualize();
@@ -219,6 +236,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
   } else {
     // Indicate that there is no (current) need to refine the solution
     // by solving the unscaled LP with scaled NLA
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Indicate that there is no (current) need to refine the solution\n");
     bool refine_solution = false;
     if (options.simplex_unscaled_solution_strategy ==
             kSimplexUnscaledSolutionStrategyNone ||
@@ -230,7 +248,9 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
       //
       // Solve the scaled LP!
       //
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Solve the scaled LP!\n");
       return_status = ekk_instance.solve();
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: After Solve the scaled LP!\n");
       ekk_instance.unpermute();
       ekk_instance.undualize();
       assert(!ekk_instance.status_.is_permuted &&
@@ -249,6 +269,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
         return returnFromSolveLpSimplex(solver_object, return_status);
       }
       // Copy solution data from the EKK instance
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Copy solution data from the EKK instance\n");
       scaled_model_status = ekk_instance.model_status_;
       highs_info.objective_function_value = ekk_info.primal_objective_value;
       highs_info.simplex_iteration_count = ekk_instance.iteration_count_;
@@ -259,8 +280,10 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
       incumbent_lp.moveBackLpAndUnapplyScaling(ekk_lp);
       // Now that the incumbent LP is unscaled, to use the simplex NLA
       // requires scaling to be applied
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Now that the incumbent LP is unscaled ...\n");
       ekk_instance.setNlaPointersForLpAndScale(incumbent_lp);
       unscaleSolution(solution, incumbent_lp.scale_);
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Before determining stuff ...\n");
       // Determine whether the unscaled LP has been solved
       getUnscaledInfeasibilities(options, incumbent_lp.scale_, ekk_basis,
                                  ekk_info, highs_info);
@@ -285,6 +308,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
       const bool scaled_objective_bound_but_unscaled_dual_infeasibilities =
           scaled_model_status == HighsModelStatus::kObjectiveBound &&
           highs_info.num_dual_infeasibilities > 0;
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Before infeasibility after unscaling check ...\n");
       if (scaled_optimality_but_unscaled_infeasibilities ||
           scaled_objective_target_but_unscaled_primal_infeasibilities ||
           scaled_objective_bound_but_unscaled_dual_infeasibilities)
@@ -313,11 +337,13 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
            scaled_model_status == HighsModelStatus::kUnknown);
       // Handle the case when refinement will not take place
       if (!refine_solution) {
+        highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Do not refine ...\n");
         model_status = scaled_model_status;
         return_status = highsStatusFromHighsModelStatus(model_status);
         return returnFromSolveLpSimplex(solver_object, return_status);
       }
     } else {
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Do refine ...\n");
       // LP is scaled, but simplex_unscaled_solution_strategy is
       // kSimplexUnscaledSolutionStrategyDirect, so have to move back
       // the LP and unscale it
@@ -336,6 +362,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
     assert(!incumbent_lp.is_moved_);
     assert(!incumbent_lp.is_scaled_);
     // Move the incumbent LP
+    highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Move the incumbent LP \n");
     ekk_instance.moveLp(solver_object);
     // If refining after proving primal infeasibility of the scaled
     // LP, see whether the proof still holds for the unscaled LP. If
@@ -413,7 +440,9 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
            kSimplexUnscaledSolutionStrategyDirect) &&
           (scaled_model_status != HighsModelStatus::kObjectiveTarget);
       assert(force_phase2 == !force_phase1);
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Solve the unscaled LP with scaled NLA \n");
       return_status = ekk_instance.solve(force_phase2);
+      highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: After Solve the unscaled LP with scaled NLA \n");
       solved_unscaled_lp = true;
       if (scaled_model_status != HighsModelStatus::kObjectiveBound &&
           ekk_instance.model_status_ == HighsModelStatus::kObjectiveBound) {
@@ -424,7 +453,9 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
             ekk_info.num_dual_infeasibilities > 0;
         if (objective_bound_refinement) {
           options.simplex_strategy = kSimplexStrategyPrimal;
+          highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: [...] in which case we again call solve with primal simplex if not dual feasible \n");
           return_status = ekk_instance.solve(force_phase2);
+          highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: after [...] in which case we again call solve with primal simplex if not dual feasible \n");
         }
       }
       // Restore the options/strategies that may have been changed
@@ -445,6 +476,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
     highs_info.basis_validity = kBasisValidityValid;
   }
   // Move the incumbent LP back from Ekk
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: Move the incumbent LP back from Ekk \n");
   incumbent_lp = std::move(ekk_lp);
   incumbent_lp.is_moved_ = false;
   ekk_instance.setNlaPointersForLpAndScale(incumbent_lp);
@@ -479,6 +511,7 @@ inline HighsStatus solveLpSimplex(HighsLpSolverObject& solver_object) {
   setSolutionStatus(highs_info);
   model_status = scaled_model_status;
   return_status = highsStatusFromHighsModelStatus(model_status);
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: solveLpSimplex: end of function \n");
   return returnFromSolveLpSimplex(solver_object, return_status);
 }
 #endif
