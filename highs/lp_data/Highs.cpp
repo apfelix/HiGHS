@@ -979,6 +979,7 @@ HighsStatus Highs::optimizeModel() {
   const HighsInt check_debug_run_call_num = -103757;
   const HighsInt check_num_col = -317;
   const HighsInt check_num_row = -714;
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after setting constants, before dev log\n");
   if (possibly_use_log_dev_level_2) {
     if (this->debug_optimize_call_num_ == check_debug_run_call_num &&
         model_.lp_.num_col_ == check_num_col &&
@@ -995,10 +996,13 @@ HighsStatus Highs::optimizeModel() {
     }
   }
 
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Before if ekk_instance_.status_.has_nla\n");
   if (ekk_instance_.status_.has_nla)
     assert(ekk_instance_.lpFactorRowCompatible(model_.lp_.num_row_));
 
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: before initialize scheduler\n");
   highs::parallel::initialize_scheduler(options_.threads);
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: after initialize scheduler\n");
 
   max_threads = highs::parallel::num_threads();
   if (options_.threads != 0 && max_threads != options_.threads) {
@@ -1017,6 +1021,7 @@ HighsStatus Highs::optimizeModel() {
                 max_threads);
   highsLogDev(options_.log_options, HighsLogType::kDetailed,
               "Running with %" HIGHSINT_FORMAT " thread(s)\n", max_threads);
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: Running with %" HIGHSINT_FORMAT " thread(s)\n", max_threads);
 
   // returnFromOptimizeModel() is a common exit method to ensure
   // consistency of values set by optimizeModel() and many other
@@ -1035,6 +1040,7 @@ HighsStatus Highs::optimizeModel() {
   }
 
   // Check whether model is consistent with any user bound/cost scaling
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: before assessExcessiveBoundCost\n");
   assert(this->model_.lp_.user_bound_scale_ == this->options_.user_bound_scale);
   assert(this->model_.lp_.user_cost_scale_ == this->options_.user_cost_scale);
   // Assess whether to warn the user about excessive bounds and costs
@@ -1052,6 +1058,7 @@ HighsStatus Highs::optimizeModel() {
   //
   // Set undo_mods = false so that returnFromOptimizeModel() doesn't undo any
   // mods that must be preserved - such as when solving a MIP node
+  highsLogUser(my_options.log_options, HighsLogType::kInfo, "FELIX: Highs::optimizeModel: before has_infinite_cost_ check\n");
   bool undo_mods = false;
   if (model_.lp_.has_infinite_cost_) {
     // If the model has infinite costs, then try to remove them. The
